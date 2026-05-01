@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A luxury 1:1 clothing item.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Product name" },
+        "description": { "type": "string", "description": "Detailed description" },
+        "price": { "type": "number", "description": "Standard price" },
+        "salePrice": { "type": "number", "description": "Discounted price if on sale" },
+        "stock": { "type": "integer", "description": "Quantity available" },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "List of image URLs" },
+        "category": { "type": "string", "description": "e.g., Hoodie, Tee, Pants" },
+        "shopUrl": { "type": "string", "description": "Shop App checkout URL" },
+        "cashAppUrl": { "type": "string", "description": "CashApp checkout link" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "stock"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer feedback on a product.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and permissions.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "telegramLink": { "type": "string" }
+      }
+    },
+    "HomeSection": {
+      "title": "Home Section",
+      "description": "A customized section for the home page.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "order": { "type": "integer" }
+      }
+    },
+    "ShippingRequest": {
+      "title": "Shipping Request",
+      "description": "Customer request for shipping updates.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "cartItems": { "type": "array" },
+        "total": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "Product catalog"
+    },
+    "products/{productId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Product reviews"
+    },
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User accounts"
+    },
+    "home_sections/{sectionId}": {
+      "schema": "HomeSection",
+      "description": "Home page spot configuration"
+    },
+    "newsletter/{id}": {
+      "schema": { "type": "object", "properties": { "email": { "type": "string" }, "type": { "type": "string" }, "createdAt": { "type": "string" } } },
+      "description": "Newsletter subscriptions"
+    },
+    "settings/{id}": {
+      "schema": { "type": "object", "properties": { "telegramLink": { "type": "string" } } },
+      "description": "Global application settings"
+    },
+    "shipping_requests/{id}": {
+      "schema": "ShippingRequest",
+      "description": "Requests for shipping updates"
+    }
+  }
+}
