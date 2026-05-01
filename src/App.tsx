@@ -59,6 +59,16 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+interface ShippingInfo {
+  fullName: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  phoneNumber: string;
+  specialInstructions?: string;
+}
+
 interface ShippingRequest {
     id: string;
     email: string;
@@ -66,6 +76,7 @@ interface ShippingRequest {
     cartItems: any[];
     total: number;
     createdAt?: string;
+    shippingInfo?: ShippingInfo;
 }
 
 // --- Helper Components ---
@@ -574,6 +585,7 @@ const ProductDetailPage = () => {
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [globalCashApp, setGlobalCashApp] = useState('');
   const [whatsappLink, setWhatsappLink] = useState('https://wa.me/16893124370');
+  const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -643,28 +655,35 @@ const ProductDetailPage = () => {
     }
 
     if (method === 'cashapp') {
-        try {
-            await addDoc(collection(db, 'shipping_requests'), {
-                email: user?.email || 'Guest',
-                orderType: 'CASHAPP',
-                cartItems: [{
-                    id: product.id,
-                    name: product.name,
-                    size: selectedSize || 'N/A',
-                    color: selectedColor || 'N/A',
-                    price: product.salePrice || product.price
-                }],
-                total: product.salePrice || product.price,
-                createdAt: new Date().toISOString()
-            });
-            window.open(finalCashAppUrl, '_blank');
-        } catch (err) {
-            console.error("Direct checkout error:", err);
-            window.open(finalCashAppUrl, '_blank');
-        }
+        setIsShippingModalOpen(true);
     } else {
         addToCart(product, selectedSize, selectedColor);
         setIsCartOpen(true);
+    }
+  };
+
+  const handleShippingComplete = async (shippingInfo: ShippingInfo) => {
+    if (!product) return;
+    setIsShippingModalOpen(false);
+    try {
+        await addDoc(collection(db, 'shipping_requests'), {
+            email: user?.email || 'Guest',
+            orderType: 'CASHAPP',
+            cartItems: [{
+                id: product.id,
+                name: product.name,
+                size: selectedSize || 'N/A',
+                color: selectedColor || 'N/A',
+                price: product.salePrice || product.price
+            }],
+            total: product.salePrice || product.price,
+            shippingInfo,
+            createdAt: new Date().toISOString()
+        });
+        window.open(finalCashAppUrl, '_blank');
+    } catch (err) {
+        console.error("Direct checkout error:", err);
+        window.open(finalCashAppUrl, '_blank');
     }
   };
 
@@ -901,6 +920,11 @@ const ProductDetailPage = () => {
           </div>
         </div>
       </div>
+      <ShippingModal 
+        isOpen={isShippingModalOpen} 
+        onClose={() => setIsShippingModalOpen(false)} 
+        onComplete={handleShippingComplete} 
+      />
     </div>
   );
 };
@@ -1363,7 +1387,35 @@ const AdminPage = () => {
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-end">
+                            {/* Shipping Information */}
+                            <div className="space-y-4 pt-4 border-t border-white/5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-purple-500">Shipping Destination</p>
+                                {req.shippingInfo ? (
+                                    <div className="bg-white/5 border border-white/10 p-6 rounded-2xl space-y-3 text-sm font-mono text-zinc-300 relative overflow-hidden group/ship">
+                                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover/ship:opacity-40 transition-opacity">
+                                            <FileText size={40} />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                                            <p><span className="text-zinc-500 mr-2 uppercase text-[10px] font-black">Recipient:</span> <span className="text-white font-bold">{req.shippingInfo.fullName}</span></p>
+                                            <p><span className="text-zinc-500 mr-2 uppercase text-[10px] font-black">Phone:</span> <span className="text-white font-bold">{req.shippingInfo.phoneNumber}</span></p>
+                                            <p className="md:col-span-2"><span className="text-zinc-500 mr-2 uppercase text-[10px] font-black">Address:</span> <span className="text-white font-bold">{req.shippingInfo.address}</span></p>
+                                            <p className="md:col-span-2"><span className="text-zinc-500 mr-2 uppercase text-[10px] font-black">Location:</span> <span className="text-white font-bold">{req.shippingInfo.city}, {req.shippingInfo.state} {req.shippingInfo.zipCode}</span></p>
+                                        </div>
+                                        {req.shippingInfo.specialInstructions && (
+                                            <div className="mt-4 pt-4 border-t border-white/5">
+                                                <p className="text-zinc-500 uppercase text-[10px] font-black mb-1">Special Instructions</p>
+                                                <p className="text-zinc-400 italic text-xs leading-relaxed">{req.shippingInfo.specialInstructions}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="bg-red-500/5 border border-red-500/20 p-4 rounded-xl">
+                                        <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest animate-pulse">Legacy Order: No Shipping Data Found</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between items-end pt-4">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Value</p>
                                     <p className="text-xl font-black italic tracking-tighter text-white">{formatPrice(req.total)}</p>
@@ -1915,6 +1967,8 @@ const CartDrawer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalCashApp, setGlobalCashApp] = useState('');
+  const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<{method: 'shop' | 'cashapp', item?: any} | null>(null);
 
   useEffect(() => {
     return onSnapshot(doc(db, 'settings', 'global'), (snap) => {
@@ -1923,6 +1977,16 @@ const CartDrawer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
   }, []);
 
   const handleBuyNow = async (method: 'shop' | 'cashapp' = 'shop', specificItem?: any) => {
+    setPendingCheckout({ method, item: specificItem });
+    setIsShippingModalOpen(true);
+  };
+
+  const handleShippingComplete = async (shippingInfo: ShippingInfo) => {
+    if (!pendingCheckout) return;
+    const { method, item: specificItem } = pendingCheckout;
+    setIsShippingModalOpen(false);
+    setPendingCheckout(null);
+
     let checkoutUrl = "https://shop.app";
     const itemsToCheckout = specificItem ? [specificItem] : cart;
     const checkoutTotal = specificItem ? (specificItem.salePrice || specificItem.price) : total;
@@ -1950,6 +2014,7 @@ const CartDrawer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
           price: item.salePrice || item.price
         })),
         total: checkoutTotal,
+        shippingInfo,
         createdAt: new Date().toISOString()
       });
       window.open(checkoutUrl, '_blank');
@@ -2055,6 +2120,11 @@ const CartDrawer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
               </div>
             )}
           </motion.div>
+          <ShippingModal 
+            isOpen={isShippingModalOpen} 
+            onClose={() => setIsShippingModalOpen(false)} 
+            onComplete={handleShippingComplete} 
+          />
         </>
       )}
     </AnimatePresence>
@@ -2122,6 +2192,183 @@ const AppContent = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+const ShippingModal = ({ 
+  isOpen, 
+  onClose, 
+  onComplete 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onComplete: (info: ShippingInfo) => void;
+}) => {
+  const [info, setInfo] = useState<ShippingInfo>({
+    fullName: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    phoneNumber: '',
+    specialInstructions: ''
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Validate required fields (though marked required in HTML)
+    if (!info.fullName || !info.address || !info.city || !info.state || !info.zipCode || !info.phoneNumber) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+    onComplete(info);
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+               // Only close if clicking the backdrop, not the modal content
+               if (e.target === e.currentTarget) onClose();
+            }}
+            className="absolute inset-0 bg-black/90 backdrop-blur-md"
+          >
+            <div className="flex items-center justify-center min-h-screen p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-lg bg-zinc-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl p-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 className="text-3xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
+                       SHIPPING<span className="text-purple-500">DETAILS</span>
+                    </h2>
+                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Verify your delivery information</p>
+                  </div>
+                  <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-zinc-500 hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="mb-6 p-4 bg-purple-500/5 rounded-2xl border border-purple-500/10">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                    Required Shipping Information
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {['Full Name', 'Phone Number', 'Full Address', 'City / State', 'ZIP Code', 'Logistics Notes'].map((item) => (
+                      <div key={item} className="flex items-center gap-2 text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                        <div className="w-1 h-1 rounded-full bg-zinc-700" />
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Full Name</label>
+                      <input 
+                        required
+                        placeholder="John Doe"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors font-mono"
+                        value={info.fullName}
+                        onChange={e => setInfo({...info, fullName: e.target.value})}
+                      />
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Address</label>
+                      <input 
+                        required
+                        placeholder="123 Street Ave"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors font-mono"
+                        value={info.address}
+                        onChange={e => setInfo({...info, address: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">City</label>
+                        <input 
+                          required
+                          placeholder="City"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors font-mono"
+                          value={info.city}
+                          onChange={e => setInfo({...info, city: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">State</label>
+                        <input 
+                          required
+                          placeholder="State"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors font-mono"
+                          value={info.state}
+                          onChange={e => setInfo({...info, state: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">ZIP Code</label>
+                        <input 
+                          required
+                          placeholder="00000"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors font-mono"
+                          value={info.zipCode}
+                          onChange={e => setInfo({...info, zipCode: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Phone</label>
+                        <input 
+                          required
+                          type="tel"
+                          placeholder="689-312-4370"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors font-mono"
+                          value={info.phoneNumber}
+                          onChange={e => setInfo({...info, phoneNumber: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-1">Special Instructions (Optional)</label>
+                      <textarea 
+                        placeholder="Notes for delivery..."
+                        rows={2}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-sm focus:border-purple-500 outline-none transition-colors resize-none font-mono"
+                        value={info.specialInstructions}
+                        onChange={e => setInfo({...info, specialInstructions: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  
+                  <button 
+                    type="submit"
+                    className="w-full bg-purple-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-purple-700 transition-all shadow-xl shadow-purple-500/20 mt-4"
+                  >
+                    Confirm & Pay
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 
