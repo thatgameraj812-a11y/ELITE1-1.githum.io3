@@ -80,11 +80,11 @@ const ProductImage = ({ src, alt, className, product, imgClassName }: { src: str
   }) || product.category?.toLowerCase().includes('cologne') || product.name?.toLowerCase().includes('baka');
 
   return (
-    <div className={cn("relative w-full h-full", className)}>
+    <div className={cn("relative w-full h-full noise-overlay", className)}>
       <img 
         src={src} 
         alt={alt} 
-        className={cn("w-full h-full object-cover", imgClassName)}
+        className={cn("w-full h-full object-cover transition-all duration-500", imgClassName)}
         referrerPolicy="no-referrer"
       />
       {needsBlur && (
@@ -279,7 +279,7 @@ const HomePage = ({ whatsappLink }: { whatsappLink: string }) => {
           <motion.h1 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-7xl md:text-[11rem] font-black text-white tracking-tighter uppercase italic leading-[0.8] mb-4 drop-shadow-[0_0_30px_rgba(124,58,237,0.3)]"
+            className="text-6xl md:text-[11rem] font-black text-white tracking-tighter uppercase italic leading-[0.8] mb-4 drop-shadow-[0_0_30px_rgba(124,58,237,0.3)]"
           >
             Elite 1:1
           </motion.h1>
@@ -360,14 +360,12 @@ const HomePage = ({ whatsappLink }: { whatsappLink: string }) => {
           <p className="text-zinc-400 max-w-xl mx-auto text-lg leading-relaxed font-medium">
             Contact us directly on WhatsApp for exclusive sourcing, bulk orders, or custom 1:1 requests.
           </p>
-          <a 
-            href={whatsappLink} 
-            target="_blank" 
-            className="inline-flex items-center gap-3 bg-[#25D366] text-white px-10 py-5 rounded-full font-black hover:scale-105 transition-all uppercase tracking-widest text-sm shadow-xl shadow-green-500/20"
+          <div 
+            className="inline-flex items-center gap-3 bg-[#25D366] text-white px-10 py-5 rounded-full font-black uppercase tracking-widest text-sm shadow-xl shadow-green-500/20"
           >
             <MessageCircle size={20} />
-            Chat on WhatsApp
-          </a>
+            Contact: 689-312-4370
+          </div>
         </div>
       </section>
     </div>
@@ -380,7 +378,7 @@ const ProductCard = ({ product }: { product: Product, key?: any }) => {
   return (
     <div className="group block relative">
       <Link to={`/product/${product.id}`}>
-        <div className="aspect-[3/4] relative overflow-hidden bg-zinc-950 rounded-2xl mb-4 group/img shadow-2xl noise-overlay">
+        <div className="aspect-[3/4] relative overflow-hidden bg-zinc-950 rounded-2xl mb-4 group/img shadow-2xl">
           <ProductImage 
             src={product.images[0] || "https://picsum.photos/seed/apparel/600/800"} 
             alt={product.name}
@@ -388,11 +386,18 @@ const ProductCard = ({ product }: { product: Product, key?: any }) => {
             imgClassName="transition-all duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60 group-hover/img:opacity-20 transition-opacity" />
-          {product.salePrice && (
-            <div className="absolute top-4 left-4 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
-              Sale
+          
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
+            <div className="bg-white/10 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-[0.2em] px-2 py-1 rounded border border-white/20 shadow-xl">
+              Elite
             </div>
-          )}
+            {product.salePrice && (
+              <div className="bg-purple-600 text-white text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-lg">
+                Sale
+              </div>
+            )}
+          </div>
+
           {product.stock === 0 && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold uppercase tracking-[0.2em]">
               Out of Stock
@@ -568,6 +573,7 @@ const ProductDetailPage = () => {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [globalCashApp, setGlobalCashApp] = useState('');
+  const [whatsappLink, setWhatsappLink] = useState('https://wa.me/16893124370');
 
   useEffect(() => {
     if (!id) return;
@@ -587,7 +593,10 @@ const ProductDetailPage = () => {
 
     // Sub to global settings
     const settingsUnsub = onSnapshot(doc(db, 'settings', 'global'), (snap) => {
-        if (snap.exists()) setGlobalCashApp(snap.data().cashAppUrl || '');
+        if (snap.exists()) {
+          setGlobalCashApp(snap.data().cashAppUrl || '');
+          setWhatsappLink(snap.data().whatsappLink || 'https://wa.me/16893124370');
+        }
     });
 
     // Sub to reviews
@@ -664,7 +673,7 @@ const ProductDetailPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
         {/* Images */}
         <div className="space-y-6">
-          <div className="aspect-[3/4] bg-zinc-950 rounded-[2.5rem] overflow-hidden shadow-2xl group/hero relative noise-overlay">
+          <div className="aspect-[3/4] bg-zinc-950 rounded-[2.5rem] overflow-hidden shadow-2xl group/hero relative">
             <ProductImage 
               src={product.images[activeImage] || "https://picsum.photos/seed/apparel/600/800"} 
               product={product}
@@ -830,12 +839,9 @@ const ProductDetailPage = () => {
               <button 
                 onClick={() => handleBuyNowFromDetail('cashapp')}
                 disabled={product.stock === 0}
-                className={cn(
-                  "w-full bg-[#00D632] text-white py-4 rounded-full font-black uppercase tracking-widest text-center flex items-center justify-center hover:opacity-90 transition-all shadow-xl shadow-green-950/20",
-                  product.stock === 0 && "opacity-50 pointer-events-none"
-                )}
+                className="w-full bg-[#00D632] text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 shadow-xl shadow-green-950/40 flex items-center justify-center gap-3"
               >
-                Buy with CashApp
+                Buy Now with CashApp
               </button>
           )}
       </div>
@@ -1284,7 +1290,7 @@ const AdminPage = () => {
                             {products.map(p => (
                                 <tr key={p.id} className="group hover:bg-white/2 transition-colors">
                                     <td className="py-6 flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                                        <div className="w-14 aspect-[3/4] rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
                                             <ProductImage src={p.images[0]} product={p} />
                                         </div>
                                         <div>
@@ -1753,15 +1759,15 @@ const ProductForm = ({ onComplete, initialData, allCategories, onDelete }: {
                 {form.imagesStr && (
                     <div className="flex gap-2 overflow-x-auto py-2">
                         {form.imagesStr.split(',').map((img, i) => (
-                            <div key={i} className="relative w-16 h-20 flex-shrink-0 group">
-                                <img src={img.trim()} className="w-full h-full object-cover rounded border border-white/10" referrerPolicy="no-referrer" />
+                            <div key={i} className="relative w-16 aspect-[3/4] flex-shrink-0 group">
+                                <img src={img.trim()} className="w-full h-full object-cover rounded border border-white/10 shadow-lg" referrerPolicy="no-referrer" />
                                 <button 
                                     type="button"
                                     onClick={() => {
                                         const imgs = form.imagesStr.split(',').map(s => s.trim()).filter((_, idx) => idx !== i);
                                         setForm({...form, imagesStr: imgs.join(', ')});
                                     }}
-                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
                                 >
                                     <X size={10} />
                                 </button>
@@ -1799,6 +1805,7 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
   const { user, isAdmin, signIn, logout, isSigningIn } = useAuth();
   const { cart, isCartOpen, setIsCartOpen } = useCart();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -1806,6 +1813,10 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
 
   const isHome = location.pathname === '/';
 
@@ -1823,16 +1834,16 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
            Elite<span className="text-purple-500">1:1</span>
         </Link>
         <div className={cn(
-          "hidden md:flex gap-8 text-[10px] font-bold uppercase tracking-[0.2em]",
+          "hidden lg:flex gap-8 text-[10px] font-bold uppercase tracking-[0.2em]",
           "text-white/60"
         )}>
           <Link to="/shop" className="hover:text-white transition-colors">Archive</Link>
           <Link to="/drops" className="hover:text-white transition-colors">Drops</Link>
-          <a href={whatsappLink} target="_blank" className="hover:text-white transition-colors">WhatsApp</a>
+          <span className="text-white/40">Contact: 689-312-4370</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 md:gap-6">
         {isAdmin && (
            <Link to="/admin" className="p-2 rounded-full transition-colors text-white/60 hover:bg-white/10 hover:text-white">
              <Settings size={20} />
@@ -1847,8 +1858,9 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
             {cart.reduce((acc, item) => acc + item.quantity, 0)}
           </span>
         </button>
+        
         {user ? (
-          <button onClick={logout} className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-white/5 text-white hover:bg-white/10 border border-white/10">
+          <button onClick={logout} className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-white/5 text-white hover:bg-white/10 border border-white/10">
             <img src={user.photoURL || ''} className="w-5 h-5 rounded-full" referrerPolicy="no-referrer" />
             <span className="hidden sm:inline">Logout</span>
           </button>
@@ -1857,7 +1869,7 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
             onClick={signIn} 
             disabled={isSigningIn}
             className={cn(
-                "flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-purple-600 text-white hover:bg-purple-700 shadow-xl shadow-purple-500/20 disabled:opacity-50",
+                "flex items-center gap-2 px-4 md:px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-purple-600 text-white hover:bg-purple-700 shadow-xl shadow-purple-500/20 disabled:opacity-50",
                 isSigningIn && "animate-pulse"
             )}
           >
@@ -1869,7 +1881,29 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
             <span className="hidden sm:inline">{isSigningIn ? 'Connecting...' : 'Connect'}</span>
           </button>
         )}
+
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="lg:hidden p-2 text-white/60 hover:text-white transition-colors"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
+
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-full left-0 right-0 bg-black border-b border-white/10 p-6 flex flex-col gap-6 lg:hidden shadow-2xl"
+          >
+            <Link to="/shop" className="text-sm font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">Archive</Link>
+            <Link to="/drops" className="text-sm font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">Drops</Link>
+            <span className="text-sm font-black uppercase tracking-widest text-zinc-500">Contact: 689-312-4370</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </nav>
@@ -1958,7 +1992,7 @@ const CartDrawer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               {cart.map((item) => (
                 <div key={`${item.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-4 group">
-                  <div className="w-20 h-24 bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 border border-white/5">
+                  <div className="w-20 aspect-[3/4] bg-zinc-900 rounded-lg overflow-hidden flex-shrink-0 border border-white/5 shadow-xl">
                     <ProductImage src={item.images[0]} product={item as any} />
                   </div>
                   <div className="flex-1 space-y-1">
@@ -2075,7 +2109,7 @@ const AppContent = () => {
           <div className="space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-widest text-green-400">Connect</h4>
             <ul className="space-y-2 text-sm font-medium text-zinc-300">
-              <li><a href={whatsappLink} target="_blank" className="hover:text-green-400 hover:underline transition-colors">WhatsApp Support</a></li>
+              <li><span className="text-green-400">Contact: 689-312-4370</span></li>
               {telegramLink && <li><a href={telegramLink} target="_blank" className="hover:text-blue-400 hover:underline transition-colors">Telegram Channel</a></li>}
               <li><a href="https://instagram.com" target="_blank" className="hover:text-purple-400 hover:underline transition-colors">Instagram</a></li>
               <li><a href="mailto:support@elite11.io" className="hover:text-purple-400 hover:underline transition-colors">Email Support</a></li>
