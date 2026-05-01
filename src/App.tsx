@@ -54,6 +54,7 @@ interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
+  isSigningIn: boolean;
   signIn: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -181,6 +182,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
@@ -213,17 +215,25 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signIn = async () => {
+    setIsSigningIn(true);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Auth error", error);
+      if (error.code === 'auth/popup-blocked') {
+        alert("Sign-in popup was blocked by your browser. Please allow popups for this site and try again.");
+      } else {
+        alert("Authentication failed: " + error.message);
+      }
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
   const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, signIn, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, isSigningIn, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -1101,6 +1111,7 @@ const AdminPage = () => {
     const [activeTab, setActiveTab ] = useState<'list' | 'add' | 'settings' | 'shipping'>('list');
     const [products, setProducts] = useState<Product[]>([]);
     const [whatsappLink, setWhatsappLink] = useState('https://wa.me/16893124370');
+    const [telegramLink, setTelegramLink] = useState('');
     const [globalCashApp, setGlobalCashApp] = useState('');
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -1135,8 +1146,10 @@ const AdminPage = () => {
 
         const settingsUnsub = onSnapshot(doc(db, 'settings', 'global'), (snap) => {
             if (snap.exists()) {
-                setWhatsappLink(snap.data().whatsappLink || snap.data().telegramLink || 'https://wa.me/16893124370');
-                setGlobalCashApp(snap.data().cashAppUrl || '');
+                const data = snap.data();
+                setWhatsappLink(data.whatsappLink || 'https://wa.me/16893124370');
+                setGlobalCashApp(data.cashAppUrl || '');
+                setTelegramLink(data.telegramLink || '');
             }
         });
 
@@ -1382,6 +1395,27 @@ const AdminPage = () => {
                                 />
                                 <button 
                                     onClick={() => handleUpdateSettings({ whatsappLink: whatsappLink })}
+                                    className="bg-purple-600 text-white px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-500/10"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm space-y-4">
+                            <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-white/80">
+                                <MessageCircle size={16} className="text-blue-400" /> Telegram Link
+                            </h3>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={telegramLink} 
+                                    onChange={(e) => setTelegramLink(e.target.value)}
+                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:ring-purple-600 outline-none text-white font-mono"
+                                    placeholder="https://t.me/..."
+                                />
+                                <button 
+                                    onClick={() => handleUpdateSettings({ telegramLink: telegramLink })}
                                     className="bg-purple-600 text-white px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-purple-700 transition-colors shadow-lg shadow-purple-500/10"
                                 >
                                     Save
@@ -1762,7 +1796,7 @@ const ProductForm = ({ onComplete, initialData, allCategories, onDelete }: {
 
 // 5. Cart Logic (Simplified for this demo) - usually would have a hook
 const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
-  const { user, isAdmin, signIn, logout } = useAuth();
+  const { user, isAdmin, signIn, logout, isSigningIn } = useAuth();
   const { cart, isCartOpen, setIsCartOpen } = useCart();
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
@@ -1819,9 +1853,20 @@ const Navbar = ({ whatsappLink }: { whatsappLink: string }) => {
             <span className="hidden sm:inline">Logout</span>
           </button>
         ) : (
-          <button onClick={signIn} className="flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-purple-600 text-white hover:bg-purple-700 shadow-xl shadow-purple-500/20">
-            <LogIn size={16} />
-            <span className="hidden sm:inline">Connect</span>
+          <button 
+            onClick={signIn} 
+            disabled={isSigningIn}
+            className={cn(
+                "flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all bg-purple-600 text-white hover:bg-purple-700 shadow-xl shadow-purple-500/20 disabled:opacity-50",
+                isSigningIn && "animate-pulse"
+            )}
+          >
+            {isSigningIn ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+                <LogIn size={16} />
+            )}
+            <span className="hidden sm:inline">{isSigningIn ? 'Connecting...' : 'Connect'}</span>
           </button>
         )}
       </div>
@@ -1985,10 +2030,15 @@ const CartDrawer = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
 
 const AppContent = () => {
     const [whatsappLink, setWhatsappLink] = useState('https://wa.me/16893124370');
+    const [telegramLink, setTelegramLink] = useState('');
 
     useEffect(() => {
         return onSnapshot(doc(db, 'settings', 'global'), (snap) => {
-            if (snap.exists()) setWhatsappLink(snap.data().whatsappLink || snap.data().telegramLink || 'https://wa.me/16893124370');
+            if (snap.exists()) {
+                const data = snap.data();
+                setWhatsappLink(data.whatsappLink || 'https://wa.me/16893124370');
+                setTelegramLink(data.telegramLink || '');
+            }
         });
     }, []);
 
@@ -2026,6 +2076,7 @@ const AppContent = () => {
             <h4 className="text-xs font-bold uppercase tracking-widest text-green-400">Connect</h4>
             <ul className="space-y-2 text-sm font-medium text-zinc-300">
               <li><a href={whatsappLink} target="_blank" className="hover:text-green-400 hover:underline transition-colors">WhatsApp Support</a></li>
+              {telegramLink && <li><a href={telegramLink} target="_blank" className="hover:text-blue-400 hover:underline transition-colors">Telegram Channel</a></li>}
               <li><a href="https://instagram.com" target="_blank" className="hover:text-purple-400 hover:underline transition-colors">Instagram</a></li>
               <li><a href="mailto:support@elite11.io" className="hover:text-purple-400 hover:underline transition-colors">Email Support</a></li>
             </ul>
